@@ -1,0 +1,12 @@
+flowchart TD
+  n0["ADXL345 FIFO"]
+  n1["Sampler task P3"]
+  n2["128 sample queue"]
+  n3["Analysis task P2"]
+  n4["8 report queue"]
+  n5["USB serial and NVS"]
+  n0 --> n1
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
+  n4 --> n5

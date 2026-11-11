@@ -1,0 +1,226 @@
+{
+  "title": "Machine condition monitor",
+  "subtitle": "Flagship project for sustained vibration change detection",
+  "problem": "A workshop technician needs to notice sustained changes in a small fan or motor without treating a single knock or a changed mounting angle as a fault. This bench prototype measures one accelerometer axis and reports a qualified alarm. It does not identify bearing defects or certify machine safety.",
+  "summary": "The sensor collects acceleration on its own clock. A sampling task drains its FIFO, an analysis task groups samples into windows, and a low-priority task prints the results. A window is 256 samples or 320 ms at the configured 800 Hz rate. Subtracting the mean removes static gravity and mounting offset. RMS describes vibration strength; crest factor describes peakiness. Three high windows enter alarm and five low windows clear it.",
+  "requirements": [
+    [
+      "F1",
+      "800 Hz ADXL345; 16-sample watermark; SPI 2 MHz",
+      "Driver mock passes; timing needs board"
+    ],
+    [
+      "F2",
+      "256 samples; alarm >0.20g for 3 windows; clear <0.14g for 5",
+      "Shared-core tests and trace pass"
+    ],
+    [
+      "F3",
+      "Invalidate gaps; 100 ms silence fault; retry in 1 s",
+      "Core gap tests pass; physical recovery pending"
+    ],
+    [
+      "F4",
+      "128 samples + 8 reports; watchdog 5 s; <10 ms compute",
+      "Bounded implementation; target timing pending"
+    ],
+    [
+      "F5",
+      "Serial diagnostics; latest transition persisted at most once/minute",
+      "Compiled adapter; physical NVS pending"
+    ]
+  ],
+  "wiring": [
+    [
+      "3V3",
+      "ADXL345 VIN",
+      "Use the specified 3.3 V compatible breakout"
+    ],
+    [
+      "GND",
+      "ADXL345 GND",
+      "Common reference"
+    ],
+    [
+      "GPIO18",
+      "ADXL345 SCL / SCK",
+      "SPI clock"
+    ],
+    [
+      "GPIO23",
+      "ADXL345 SDA / SDI",
+      "SPI MOSI"
+    ],
+    [
+      "GPIO19",
+      "ADXL345 SDO",
+      "SPI MISO"
+    ],
+    [
+      "GPIO26",
+      "ADXL345 CS",
+      "Active low; avoids boot strap pins"
+    ],
+    [
+      "GPIO27",
+      "ADXL345 INT1",
+      "Watermark / overrun interrupt"
+    ]
+  ],
+  "bom": [
+    [
+      "ESP32 DevKitC WROOM 4 MB",
+      "1",
+      "USD 10-18 estimate"
+    ],
+    [
+      "Adafruit ADXL345 1231",
+      "1",
+      "USD 17.50 observed"
+    ],
+    [
+      "USB cable, breadboard, jumpers, rigid mount",
+      "1 set",
+      "USD 5-10 estimate"
+    ]
+  ],
+  "arch": [
+    "ADXL345 FIFO",
+    "Sampler task P3",
+    "128 sample queue",
+    "Analysis task P2",
+    "8 report queue",
+    "USB serial and NVS"
+  ],
+  "decisions": [
+    "SPI belongs only to the sampler. The GPIO interrupt sends a FreeRTOS task notification; it never reads the bus, allocates memory, prints, or calculates signal features. A 10 ms fallback poll prevents a missed interrupt from stopping acquisition.",
+    "Queue entries are copied values. The sampler assigns sequence numbers before enqueueing, and marks the next accepted sample after a queue drop. The processor detects discontinuity, discards its partial window and enters SENSOR_FAULT. Complete fresh windows are required before normal detection resumes.",
+    "The FIFO is stream mode, 32 entries, with a 16-entry watermark. At 800 Hz it holds only 40 ms, so long flash stalls can still cause overflow. They are reported, not concealed. Six-byte SPI reads consume all three axes to advance FIFO correctly; only x is analyzed. A 5 microsecond gap is left between FIFO reads.",
+    "Two-pass RMS uses a double-precision mean and centered energy. This favors numerical behavior over speed; no target acceleration is claimed. Single-precision or fixed-point optimization is an experiment, not an implemented improvement.",
+    "The task watchdog observes sampling, analysis and the Arduino output task. Queues and stacks are allocated at startup and checked. Atomic counters hold cross-task drop counts. NVS is owned by the output task and writes only a rate-limited latest state, not a complete event history."
+  ],
+  "tests": [
+    [
+      "F1",
+      "Identity, register settings, invalid FIFO count, signed sample, failed SPI mock",
+      "PASS host"
+    ],
+    [
+      "F2",
+      "Analytic sine RMS / crest; constant and empty window; NaN; hysteresis",
+      "PASS host"
+    ],
+    [
+      "F3",
+      "Missing sequence, flagged overflow, partial-window invalidation, wrap",
+      "PASS host"
+    ],
+    [
+      "F3/F4",
+      "FIFO and software queue blackout model; ring bounds; host soak",
+      "PASS host model"
+    ],
+    [
+      "F1/F4",
+      "Real FIFO cadence, ISR duration, FreeRTOS jitter and watchdog reset",
+      "PENDING hardware"
+    ],
+    [
+      "F5",
+      "Power cut during state write; restart diagnostic; flash stall effect",
+      "PENDING hardware"
+    ]
+  ],
+  "failures": "The original feature and driver test suite passed. Review identified that persistent state was written but never shown at startup; startup diagnostics now read it. The driver cannot detect an arbitrary corrupt SPI sample because ADXL345 data frames have no CRC. Identity, FIFO bounds and silence checks catch only a subset of electrical failures.",
+  "limitations": "Only one axis and time-domain features are used. The synthetic trace contains known sines and ideal offsets, not labeled machine recordings. False-alarm counts apply only to this trace. No FFT, trained classifier, wireless dashboard, production enclosure, or protective shutdown is claimed. The latest transition may be lost before its one-minute persistence interval. A full report queue can lose diagnostic rows, with a counter reporting that loss.",
+  "experiments": [
+    "Capture INT1, CS and a temporary analysis-toggle GPIO with a logic analyzer for 60 s. Count data samples; target 800 Hz within the sensor clock tolerance, no unexplained sequence gaps, and window compute below 10 ms. Record p50/p95/p99 service latency.",
+    "Disconnect sensor power for 5 s. Record first SENSOR_FAULT timestamp and first complete valid window after reconnection. Target recovery below 2 s; repeat 20 times. Force a sampler delay >40 ms to show a FIFO overrun and window reset.",
+    "In a temporary test build, suppress only the sampler watchdog reset while other tasks keep running. Confirm reboot, reset reason and recovery. Remove injection afterward. Cut power during NVS writes and check startup state remains valid or reports absent."
+  ],
+  "walkthrough": [
+    [
+      "include/monitor.hpp: features",
+      "Walk through mean, centered energy, square root, peak and crest. The baseline passes remove_dc=false."
+    ],
+    [
+      "include/monitor.hpp: Detector",
+      "Draw NORMAL, ALARM and SENSOR_FAULT. Explain consecutive high/low counts and the neutral band."
+    ],
+    [
+      "include/monitor.hpp: Processor",
+      "Trace 255 samples, a missing sequence, and 256 fresh samples. A discontinuity must not masquerade as a clean window."
+    ],
+    [
+      "include/monitor.hpp: Adxl345",
+      "Explain identity register 0x00, format 0x31, rate 0x2c, FIFO 0x38 and 6-byte sample reads."
+    ],
+    [
+      "src/main.cpp: acquire / analyze / loop",
+      "Follow ownership and priorities. Explain how notifications wake acquisition and queues isolate slow serial output."
+    ],
+    [
+      "tools/simulate.cpp",
+      "Show the same feature and detector code receiving deterministic synthetic signals. This is a host simulation, not MCU emulation."
+    ]
+  ],
+  "questions": [
+    [
+      "Why subtract the mean?",
+      "Static gravity or a mounting offset raises raw RMS even when dynamic vibration stays small. Centering estimates the AC component within each window."
+    ],
+    [
+      "Why use a FIFO?",
+      "The sensor clock determines sample spacing. The CPU can drain small batches, reducing interrupt frequency and tolerating brief scheduling delays. Capacity still limits delay tolerance."
+    ],
+    [
+      "What happens when the queue fills?",
+      "The new sample is dropped and counted. A sequence discontinuity or explicit gap flag resets the partial window, so detection never silently treats discontinuous data as continuous."
+    ],
+    [
+      "Why is the ISR short?",
+      "SPI and printing can block. The ISR only notifies a task; bounded work reduces interrupt latency and leaves scheduling available."
+    ],
+    [
+      "How fast can an alarm appear?",
+      "For the aligned simulated step, three 320 ms windows require 960 ms. An arbitrary onset and mixed first window can add delay; physical latency remains unmeasured."
+    ],
+    [
+      "What does crest factor add?",
+      "Peak divided by RMS distinguishes peaky from smooth signals. It is logged for explanation and future work; the current alarm rule uses RMS only."
+    ],
+    [
+      "Why is no DMA used?",
+      "Each sensor sample is a small separate SPI transaction with FIFO-pop timing. DMA complexity has no demonstrated benefit here."
+    ],
+    [
+      "Is a fault the same as an alarm?",
+      "No. ALARM means qualified elevated vibration. SENSOR_FAULT means insufficient trustworthy samples. Reporting them separately avoids presenting missing data as a healthy machine."
+    ],
+    [
+      "What is thread-safe here?",
+      "Queue copies transfer samples and reports; one task owns each peripheral; atomic integers hold diagnostic counters. Volatile alone would not provide cross-core synchronization."
+    ],
+    [
+      "What would make it industrial?",
+      "Calibrated mounting, full-axis acquisition, spectral validation, labeled operating data, electrical protection, field fault tests and measured timing. None can be inferred from synthetic accuracy."
+    ]
+  ],
+  "mods": [
+    "Add y/z axes and compare vector RMS with separate-axis RMS. Extend analytic tests first.",
+    "Make thresholds configurable with versioned storage and reject NaN or inverted thresholds.",
+    "Add a Goertzel feature for a known rotation frequency and validate with two synthetic tones."
+  ],
+  "demo": [
+    "Run sh tools/test.sh and identify the gap/overflow assertions.",
+    "Run sh tools/simulate.sh and open evidence/benchmark.png.",
+    "Explain the offset region, five isolated spikes and sustained step. Show the delayed alarm as a tradeoff.",
+    "Open src/main.cpp and trace one interrupt through the queues. End by stating that target timing is pending hardware."
+  ],
+  "resume": [
+    "Developed an AI-assisted C++ vibration-monitoring prototype with an ADXL345 adapter, FreeRTOS queues, gap detection and persistent diagnostics; cross-compiled for ESP32.",
+    "Validated mean-removed RMS and alarm hysteresis with analytic inputs, mocked SPI faults and repeated host execution.",
+    "Reduced isolated-spike alarms from 5 to 0 on a deterministic synthetic trace, with sustained-alarm delay increasing from 0.32 s to 0.96 s."
+  ],
+  "id": "condition-monitor"
+}
