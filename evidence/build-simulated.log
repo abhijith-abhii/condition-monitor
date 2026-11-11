@@ -1,0 +1,41 @@
+/Users/rogue/Documents/Codex/2026-11-11/i-need-some-projects-in-embedded/work/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Processing simulated (platform: espressif32@6.9.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+/Users/rogue/Documents/Codex/2026-11-11/i-need-some-projects-in-embedded/work/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.9.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.0 (2.0.17) 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 33 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- Preferences @ 2.0.0
+|-- SPI @ 2.0.0
+Building in release mode
+Compiling .pio/build/simulated/src/main.cpp.o
+Linking .pio/build/simulated/firmware.elf
+Retrieving maximum program size .pio/build/simulated/firmware.elf
+Checking size .pio/build/simulated/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]   6.8% (used 22192 bytes from 327680 bytes)
+Flash: [==        ]  22.3% (used 292889 bytes from 1310720 bytes)
+Building .pio/build/simulated/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 1.96 seconds =========================
+
+Environment    Status    Duration
+-------------  --------  ------------
+simulated      SUCCESS   00:00:01.963
+========================= 1 succeeded in 00:00:01.963 =========================

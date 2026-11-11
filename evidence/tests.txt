@@ -1,0 +1,1 @@
+PASS 290 assertions: features, hysteresis, gaps, ring, mocked SPI driver

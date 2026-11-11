@@ -1,0 +1,13 @@
+{
+  "ram": {
+    "used_bytes": 22192,
+    "capacity_bytes": 327680
+  },
+  "flash": {
+    "used_bytes": 290069,
+    "capacity_bytes": 1310720
+  },
+  "environment": "esp32dev",
+  "exit_code": 0,
+  "kind": "cross-compiled; not flashed"
+}

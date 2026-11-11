@@ -1,0 +1,7 @@
+Requirement,Test,Result,Environment
+F1,"Identity, register settings, invalid FIFO count, signed sample, failed SPI mock",PASS host,Host / deterministic simulation
+F2,Analytic sine RMS / crest; constant and empty window; NaN; hysteresis,PASS host,Host / deterministic simulation
+F3,"Missing sequence, flagged overflow, partial-window invalidation, wrap",PASS host,Host / deterministic simulation
+F4,Full ring preserves ordering; soak of shared processing core,PASS host,Host / deterministic simulation
+F1/F4,"Real FIFO cadence, ISR duration, FreeRTOS jitter and watchdog reset",PENDING hardware,Physical board
+F5,Power cut during state write; restart diagnostic; flash stall effect,PENDING hardware,Physical board

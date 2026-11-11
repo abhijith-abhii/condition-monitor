@@ -1,0 +1,1 @@
+PASS discrete-event fault model: hardware_overruns=16 queue_drops=120 invalidated_windows=2 completed_windows=14; simulated_duration_s=5
