@@ -1,0 +1,7 @@
+.pio/
+.build/
+__pycache__/
+*.sqlite*
+config.local.hpp
+.venv/
+.DS_Store
